@@ -8,37 +8,50 @@ const todoRoutes = require("./routes/todos");
 
 const app = express();
 
-// ✅ Middleware
-// app.use(cors());
-// Allow multiple origins (your frontend + local development)
+// ✅ Enhanced CORS Configuration
 const allowedOrigins = [
   'https://todomern01.netlify.app',
-  'http://localhost:5173', // Vite default
-  'http://localhost:3000'  // Create React App default
+  'http://localhost:5173',
+  'http://localhost:3000'
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
+    // Allow requests with no origin (like mobile apps, Postman, server-side requests)
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      // Don't throw error, just deny (some browsers don't like errors)
+      callback(null, false);
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE']
+  credentials: true, // Important if using cookies/auth
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Handle preflight requests
+app.options('*', cors());
+
 app.use(express.json());
 
 // ✅ API routes
 app.use("/api/todos", todoRoutes);
 
-// ✅ For production (optional — if you later serve frontend from backend)
+// ✅ Basic health check route
+app.get("/", (req, res) => {
+  res.json({ 
+    message: "Todo API is running!",
+    timestamp: new Date().toISOString()
+  });
+});
+
+// ✅ For production
 if (process.env.NODE_ENV === "production") {
   const __dirname1 = path.resolve();
-  app.use(express.static(path.join(__dirname1, "/frontend/dist"))); // if React build inside backend folder
+  app.use(express.static(path.join(__dirname1, "/frontend/dist")));
 
   app.get("*", (req, res) => {
     res.sendFile(path.resolve(__dirname1, "frontend", "dist", "index.html"));
